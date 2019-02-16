@@ -11,8 +11,10 @@ from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.core.validators import validate_email
+from .authentication import ToDoTokenAuthentication
 from . import utils
 import jwt
+from .models import TaskList, Task, ListAccess
 
 
 class HelloWorld(APIView):
@@ -186,3 +188,61 @@ class LoginRefresh(APIView):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class ListAdd(APIView):
+    authentication_classes = (ToDoTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        if request.data.get('name', None) and request.data.get('name') != '':
+            # Getting request data
+            name = request.data.get('name')
+            description = request.data.get('description') if request.data.get('description', None) else ''
+
+            # Writing to database
+            try:
+                new_list = TaskList(name=name, description=description)
+                new_list.save()
+                new_list_access = ListAccess(user=request.user, list=new_list, role='owner')
+                new_list_access.save()
+
+                # Responding back
+                resp_dict = {
+                    'status': 'success',
+                    'message': 'List created successfully',
+                    'data': {'id': new_list.id, 'name': new_list.name, 'description': new_list.description}
+                }
+                resp = Response()
+                resp.status_code = 201
+                resp.data = resp_dict
+            except ValueError as val_err:
+                # Responding back
+                resp_dict = {
+                    'status': 'failed',
+                    'message': 'Something went wrong while writing to database, {0}'.format(val_err),
+                    'data': {}
+                }
+                resp = Response()
+                resp.status_code = 400
+                resp.data = resp_dict
+            except Exception as er:
+                # Responding back
+                resp_dict = {
+                    'status': 'failed',
+                    'message': 'Something unexpected happened!, {0}'.format(er),
+                    'data': {}
+                }
+                resp = Response()
+                resp.status_code = 400
+                resp.data = resp_dict
+
+        else:
+            resp_dict = {
+                'status': 'failed',
+                'message': 'List name is required but not provided',
+                'data': {}
+            }
+            resp = Response()
+            resp.status_code = 400
+            resp.data = resp_dict
+
+        return resp
