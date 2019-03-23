@@ -27,5 +27,7 @@ urlpatterns = [
 
     # Paths for Lists
     re_path(r'^lists/add(?:\/)?$', views.ListAdd.as_view()),
-    re_path(r'^lists/list(?:\/)?$', views.ListFetch.as_view())
+    re_path(r'^lists/list(?:\/)?$', views.ListFetch.as_view()),
+    re_path(r'^tasks/add(?:\/)?$', views.TaskAdd.as_view()),
+    re_path(r'^tasks/list$', views.TaskFetch.as_view()),
 ]

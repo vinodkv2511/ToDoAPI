@@ -26,7 +26,7 @@ class ListAccess(models.Model):
     # Foreign key relation to List
     list = models.ForeignKey('TaskList', on_delete=models.CASCADE)
 
-    # this field provides access level of a user on a list
+    # this field provides access level of a user on a list, possible values owner, guest
     role = models.CharField(max_length=5)
 
 

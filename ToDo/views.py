@@ -15,6 +15,7 @@ from .authentication import ToDoTokenAuthentication
 from . import utils
 import jwt
 from .models import TaskList, Task, ListAccess
+from django.core.exceptions import ObjectDoesNotExist
 
 
 class HelloWorld(APIView):
@@ -273,4 +274,124 @@ class ListFetch(APIView):
             resp_dict['data'] = None
 
         return Response(resp_dict)
+
+
+class TaskAdd(APIView):
+    authentication_classes = (ToDoTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        resp_dict = {
+            'status': None,
+            'message': None,
+            'data': None
+        }
+
+        req_list_id = request.data.get("list_id")
+        req_task_name = request.data.get("name")
+        req_task_desc = request.data.get('description') if request.data.get('description', None) else ''
+
+        if req_list_id and TaskList.objects.filter(id=req_list_id).exists() and \
+                req_task_name and req_task_name != '':
+            try:
+                task_list = TaskList.objects.get(id=req_list_id)
+
+                user_perm = ListAccess.objects.filter(user=request.user, list=task_list)
+
+                if user_perm.count() != 1 or user_perm.first().role != 'owner':
+                    raise PermissionError("You do not have permission to edit this list")
+
+                new_task = Task(name=req_task_name, list=task_list, description=req_task_desc)
+                new_task.save()
+
+                resp_dict['status'] = "success"
+                resp_dict['message'] = "Task creation successful"
+                resp_dict['data'] = {"name": new_task.name, "description": new_task.description, "done": new_task.done,
+                                     "list_id": new_task.list.id}
+                resp = Response(resp_dict)
+                resp.status_code = 200
+
+            except PermissionError as pe:
+                resp_dict['status'] = "failed"
+                resp_dict['message'] = pe.__str__()
+                resp_dict['data'] = None
+                resp = Response(resp_dict)
+                resp.status_code = 403
+            except Exception as e:
+                resp_dict['status'] = "failed"
+                resp_dict['message'] = "Something went wrong, Error: "+e.__str__()
+                resp_dict['data'] = None
+                resp = Response(resp_dict)
+                resp.status_code = 500
+
+        else:
+            resp_dict['status'] = "failed"
+            resp_dict['message'] = "Invalid name or list_id passed"
+            resp_dict['data'] = None
+            resp = Response(resp_dict)
+            resp.status_code = 400
+
+        return resp
+
+
+class TaskFetch(APIView):
+    authentication_classes = (ToDoTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+
+        resp_dict = {
+            'status': None,
+            'message': None,
+            'data': None
+        }
+
+        try:
+            list_id = request.query_params.get("list_id", None)
+
+            # checking if the list id is provided
+            if list_id is None or list_id == '':
+                raise ValueError("Invalid list_id")
+
+            # fetching list object
+            try:
+                task_list_obj = TaskList.objects.get(id=list_id)
+            except ObjectDoesNotExist:
+                raise ValueError("Invalid list_id")
+
+            # checking if the user has permission on the given list
+            try:
+                list_perm_qs = ListAccess.objects.get(user=request.user, list=task_list_obj)
+            except ObjectDoesNotExist:
+                raise PermissionError("You do not have permission to access this list")
+
+            # fetching tasks
+            tasks = Task.objects.filter(list=task_list_obj).values()
+
+            resp_dict['status'] = "success"
+            resp_dict['message'] = "Fetched tasks successfully"
+            resp_dict['data'] = tasks
+            resp = Response(resp_dict)
+            resp.status_code = 200
+
+        except PermissionError as pe:
+            resp_dict['status'] = "failed"
+            resp_dict['message'] = pe.__str__()
+            resp_dict['data'] = None
+            resp = Response(resp_dict)
+            resp.status_code = 403
+        except ValueError as ve:
+            resp_dict['status'] = "failed"
+            resp_dict['message'] = ve.__str__()
+            resp_dict['data'] = None
+            resp = Response(resp_dict)
+            resp.status_code = 400
+        except Exception as e:
+            resp_dict['status'] = "failed"
+            resp_dict['message'] = "Something went wrong, Error: " + e.__str__()
+            resp_dict['data'] = None
+            resp = Response(resp_dict)
+            resp.status_code = 500
+
+        return resp
 
