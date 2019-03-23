@@ -26,5 +26,6 @@ urlpatterns = [
     path('login/register', views.Register.as_view()),
 
     # Paths for Lists
-    re_path(r'^lists/add(?:\/)?$', views.ListAdd.as_view())
+    re_path(r'^lists/add(?:\/)?$', views.ListAdd.as_view()),
+    re_path(r'^lists/list(?:\/)?$', views.ListFetch.as_view())
 ]

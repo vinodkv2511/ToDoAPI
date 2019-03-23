@@ -246,3 +246,31 @@ class ListAdd(APIView):
             resp.data = resp_dict
 
         return resp
+
+
+class ListFetch(APIView):
+    authentication_classes = (ToDoTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        resp_dict = {
+            'status': '',
+            'message': '',
+            'data': None
+        }
+
+        try:
+            list_ids = ListAccess.objects.values_list('list').filter(user=request.user)
+            lists = TaskList.objects.filter(id__in=list_ids).values()
+            resp_dict['status'] = 'Success'
+            resp_dict['message'] = 'Retrieved the list of todo lists'
+            resp_dict['data'] = lists
+
+        except Exception as e:
+            print(e)
+            resp_dict['status'] = 'Failed'
+            resp_dict['message'] = 'Something went wrong while fetching data. Error: '+e.__str__()
+            resp_dict['data'] = None
+
+        return Response(resp_dict)
+
