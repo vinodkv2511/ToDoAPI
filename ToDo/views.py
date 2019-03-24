@@ -395,3 +395,77 @@ class TaskFetch(APIView):
 
         return resp
 
+
+class TaskStatusSet(APIView):
+    authentication_classes = (ToDoTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+
+        resp_dict = {
+            'status': None,
+            'message': None,
+            'data': None
+        }
+
+        try:
+            task_id = request.data.get("task_id")
+            new_status = request.data.get("status")
+
+            # checking if the list id is provided
+            if task_id is None or task_id == '':
+                raise ValueError("Invalid task_id")
+
+            # checking if new_status is valid boolean
+            if new_status is None or new_status.lower() not in ['true', 'false']:
+                raise ValueError("Invalid status passed")
+
+            new_status = True if new_status.lower() == 'true' else False
+
+            # fetching task object
+            try:
+                task_obj = Task.objects.get(id=task_id)
+            except ObjectDoesNotExist:
+                raise ValueError("Invalid task_id")
+
+            # Checking if the user has permission on this list to which this task belongs
+            try:
+                user_perm = ListAccess.objects.get(user=request.user, list=task_obj.list)
+                if user_perm.role != 'owner':
+                    raise PermissionError("You do not have permission to edit this task")
+            except ObjectDoesNotExist:
+                raise PermissionError("You do not have permission to edit this task")
+
+            task_obj.done = new_status
+
+            task_obj.save()
+
+            resp_dict['status'] = "success"
+            resp_dict['message'] = "Updated task status successfully"
+            resp_dict['data'] = {"id": task_obj.id, "name": task_obj.name, "list_id": task_obj.list.id,
+                                 "status": task_obj.done, "description": task_obj.description}
+            resp = Response(resp_dict)
+            resp.status_code = 200
+
+        except PermissionError as pe:
+            resp_dict['status'] = "failed"
+            resp_dict['message'] = pe.__str__()
+            resp_dict['data'] = None
+            resp = Response(resp_dict)
+            resp.status_code = 403
+
+        except ValueError as ve:
+            resp_dict['status'] = "failed"
+            resp_dict['message'] = ve.__str__()
+            resp_dict['data'] = None
+            resp = Response(resp_dict)
+            resp.status_code = 400
+        except Exception as e:
+            resp_dict['status'] = "failed"
+            resp_dict['message'] = "Something went wrong, Error: " + e.__str__()
+            resp_dict['data'] = None
+            resp = Response(resp_dict)
+            resp.status_code = 500
+
+        return resp
+
