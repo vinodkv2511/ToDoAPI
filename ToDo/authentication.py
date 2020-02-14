@@ -1,6 +1,5 @@
 
 from django.contrib.auth.models import User
-from django.utils.six import text_type
 from rest_framework import authentication, exceptions, HTTP_HEADER_ENCODING
 import jwt
 from django.conf import settings
@@ -12,7 +11,7 @@ class ToDoTokenAuthentication(authentication.BaseAuthentication):
 
         # Get the token from request header
         auth = request.META.get('HTTP_AUTHORIZATION', b'')
-        if isinstance(auth, text_type):
+        if isinstance(auth, str):
             # Work around django test client oddness
             auth = auth.encode(HTTP_HEADER_ENCODING)
 
