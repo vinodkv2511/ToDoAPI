@@ -1,4 +1,4 @@
 Django>=2.1.6
-djangorestframework==3.9.0
+djangorestframework>=3.9.1
 PyJWT==1.6.4
 pytz==2018.7
